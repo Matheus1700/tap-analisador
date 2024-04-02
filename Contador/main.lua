@@ -27,12 +27,31 @@ function isNumeric(valor)
     return tonumber(valor) ~= nil
 end
 
+function verificarMinutagem(valor)
+    local match = true
+    modelo = "##:##:##,### --> ##:##:##,###"
+
+    for i = 1, #valor do
+      if valor:sub(i, i) ~= modelo:sub(i, i) and modelo:sub(i, i) ~= "#" then
+        match = false
+        break
+      end
+    end
+    
+    if match then
+      return true
+    else
+      return false
+    end
+end
+
+-- problema aqui
 function removerLinhasIndesejadas(linhas)
     local novoArray = {}
 
     for _, linha in ipairs(linhas) do
-        if not isNumeric(linha) and not linha:match("^%d%d:%d%d:%d%d,%d%d%d --> %d%d:%d%d:%d%d,%d%d%d$") then -- se nao for numerico 
-            table.insert(novoArray, linha)
+        if not isNumeric(linha) and not verificarMinutagem(linha) then
+                table.insert(novoArray, linha)
         end
     end
 
@@ -41,14 +60,14 @@ end
 
 function main()
     local arquivo = "../vikings-first-season/Vikings.S01E01.1080p.WEB-DL.AC3.X264-MRSK.srt"
-    -- aqui nesse moente cabe eu encadear funcoes
-    local conteudo = lerArquivo(arquivo)
-    local novoConteudo = removerEspacos(conteudo)
-    local novoNovoConteudo = removerLinhasIndesejadas(novoConteudo)
 
-    if novoNovoConteudo then
-        for i = 1, 40 do -- Comece de 1 ao invés de 0 para Lua
-            print(novoNovoConteudo[i])
+    local conteudo = removerLinhasIndesejadas(removerEspacos(lerArquivo(arquivo)))
+
+    
+    if conteudo then
+        print("------------------------------")
+        for i = 1, 20 do
+            print(conteudo[i])
         end
     else
         print("Erro ao ler o arquivo.")
