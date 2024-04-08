@@ -1,5 +1,3 @@
--- Fazer um JSON
--- Contar cada palavra no JSON
 
 function lerArquivo(arquivo)
     local linhas = {}
@@ -75,8 +73,9 @@ function removerCaracteresEspeciais(linha)
     local simbolosMusicais = "♪"
     local pontuacao = "!?,.;-"
     local caracteresEspeciais = "["..simbolosMusicais..pontuacao.."]"
+    caracteresEspeciais = caracteresEspeciais .. '"'
   
-    return linha:gsub(caracteresEspeciais, "")
+    return linha:gsub("["..caracteresEspeciais:gsub("%p", "%%%1").."]", "")
 end
 
 
@@ -96,7 +95,7 @@ function contarPalavras(conteudoLimpo)
 end
   
 
-function criarJSON(listaPalavras)
+function criarJSON(listaPalavras, episodioEscolhido)
     json = require "json"
     local arquivoJSON = "contagem_palavras.json"
     local file = io.open(arquivoJSON, "w")
@@ -116,17 +115,26 @@ function criarJSON(listaPalavras)
         end
         file:write("\n]\n")
         file:close()
-        print("Contagens das palavras foram escritas em '" .. arquivoJSON .. "'.")
+        print("Contagens das palavras do episodio " .. episodioEscolhido .. " foram escritas em '" .. arquivoJSON .. "'.")
     else
         print("Erro ao abrir o arquivo JSON para escrita.")
     end
 end
 
+function opcaoEpisodio()
+    print("Selecione o episodio que deseja processar (Entre 1 e 9): ")
+    opcao = io.read("*n")
+    while (opcao < 1 or opcao > 9) do
+        print("Selecione o episodio que deseja processar (Entre 1 e 9): ")
+        opcao = io.read("*n")
+    end
 
-
+    return opcao
+end
 
 function main()
-    local arquivo = "../vikings-first-season/Vikings.S01E01.1080p.WEB-DL.AC3.X264-MRSK.srt"
+    episodioEscolhido = opcaoEpisodio()
+    local arquivo = "../vikings-first-season/Vikings.S01E0".. episodioEscolhido ..".1080p.WEB-DL.AC3.X264-MRSK.srt"
 
     local conteudoOriginal = lerArquivo(arquivo)
     local conteudoLimpo = removerLinhasIndesejadas(removerEspacos(conteudoOriginal))
@@ -138,10 +146,15 @@ function main()
     for palavra, frequencia in pairs(contagemPalavras) do
         table.insert(listaPalavras, {palavra = palavra, frequencia = frequencia})
     end
-    table.sort(listaPalavras, function(a, b) return a.palavra < b.palavra end)
 
-    criarJSON(listaPalavras)
+    local function compararFrequencia(a, b)
+        return a.frequencia > b.frequencia 
+    end
+    table.sort(listaPalavras, compararFrequencia)
 
+
+    criarJSON(listaPalavras, episodioEscolhido)
 end
+
 
 main()
