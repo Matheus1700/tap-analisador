@@ -73,7 +73,7 @@ end
 
 function removerCaracteresEspeciais(linha)
     local simbolosMusicais = "♪"
-    local pontuacao = "!?,.;"
+    local pontuacao = "!?,.;-"
     local caracteresEspeciais = "["..simbolosMusicais..pontuacao.."]"
   
     return linha:gsub(caracteresEspeciais, "")
@@ -96,6 +96,34 @@ function contarPalavras(conteudoLimpo)
 end
   
 
+function criarJSON(listaPalavras)
+    json = require "json"
+    local arquivoJSON = "contagem_palavras.json"
+    local file = io.open(arquivoJSON, "w")
+    if file then
+        file:write("[\n")
+        local primeiraLinha = true
+        for _, palavra in ipairs(listaPalavras) do
+            if not primeiraLinha then
+                file:write(",\n")
+            else
+                primeiraLinha = false
+            end
+            file:write('\t{\n')
+            file:write('\t\t"palavra": "' .. palavra.palavra .. '",\n')
+            file:write('\t\t"frequencia": ' .. palavra.frequencia .. '\n')
+            file:write('\t}')
+        end
+        file:write("\n]\n")
+        file:close()
+        print("Contagens das palavras foram escritas em '" .. arquivoJSON .. "'.")
+    else
+        print("Erro ao abrir o arquivo JSON para escrita.")
+    end
+end
+
+
+
 
 function main()
     local arquivo = "../vikings-first-season/Vikings.S01E01.1080p.WEB-DL.AC3.X264-MRSK.srt"
@@ -105,31 +133,15 @@ function main()
     conteudoLimpo = removerTags(conteudoLimpo)
     
     local contagemPalavras = contarPalavras(conteudoLimpo)
-    json = require "json"
-    local jsonPalavras = json.encode(contagemPalavras)
-
-    -- Escrever as contagens no arquivo JSON
-    local arquivoJSON = "contagem_palavras.json"
-    local file = io.open(arquivoJSON, "w")
-    if file then
-        file:write(jsonPalavras)
-        file:close()
-        print("Contagens das palavras foram escritas em '" .. arquivoJSON .. "'.")
-    else
-        print("Erro ao escrever as contagens das palavras no arquivo JSON.")
+    
+    local listaPalavras = {}
+    for palavra, frequencia in pairs(contagemPalavras) do
+        table.insert(listaPalavras, {palavra = palavra, frequencia = frequencia})
     end
+    table.sort(listaPalavras, function(a, b) return a.palavra < b.palavra end)
 
-    --[[
-    -- so pra testar, depois eu removo isso
-    if conteudoLimpo then
-        print("------------------------------")
-        for i = 1, 20 do
-            print(conteudoLimpo[i])
-        enda
-    else
-        print("Erro ao ler o arquivo.")
-    end
-    ]]
+    criarJSON(listaPalavras)
+
 end
 
 main()
