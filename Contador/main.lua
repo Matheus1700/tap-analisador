@@ -1,8 +1,15 @@
+local M = require("funcoes")
 
 function lerArquivo(arquivo)
     local linhas = {}
-    for linha in io.lines(arquivo) do
-        table.insert(linhas, linha)
+    local file = io.open(arquivo, "r")
+    if file then
+        for linha in file:lines() do
+            table.insert(linhas, linha)
+        end
+        file:close()
+    else
+        print("Erro ao abrir o arquivo: " .. arquivo)
     end
 
     return linhas
@@ -26,20 +33,16 @@ end
 
 function verificarMinutagem(valor)
     local match = true
-    modelo = "##:##:##,### --> ##:##:##,###"
+    local modelo = "##:##:##,### --> ##:##:##,###"
 
     for i = 1, #valor do
-      if valor:sub(i, i) ~= modelo:sub(i, i) and modelo:sub(i, i) ~= "#" then
-        match = false
-        break
-      end
+        if valor:sub(i, i) ~= modelo:sub(i, i) and modelo:sub(i, i) ~= "#" then
+            match = false
+            break
+        end
     end
-    
-    if match then
-      return true
-    else
-      return false
-    end
+
+    return match
 end
 
 function removerLinhasIndesejadas(linhas)
@@ -47,7 +50,7 @@ function removerLinhasIndesejadas(linhas)
 
     for _, linha in ipairs(linhas) do
         if not isNumeric(linha) and not verificarMinutagem(linha) then
-                table.insert(novoArray, linha)
+            table.insert(novoArray, linha)
         end
     end
 
@@ -60,10 +63,10 @@ function removerTags(linhas)
 
     for _, linha in ipairs(linhas) do
         if not linha:find("<font ") then
-            linhaSemTags = linha:gsub(modeloSemTags, "")
+            local linhaSemTags = linha:gsub(modeloSemTags, "")
             linhaSemTags = removerCaracteresEspeciais(linhaSemTags)
             table.insert(novoArray, linhaSemTags)
-          end
+        end
     end
 
     return novoArray
@@ -74,30 +77,35 @@ function removerCaracteresEspeciais(linha)
     local pontuacao = "!?,.;-"
     local caracteresEspeciais = "["..simbolosMusicais..pontuacao.."]"
     caracteresEspeciais = caracteresEspeciais .. '"'
-  
-    return linha:gsub("["..caracteresEspeciais:gsub("%p", "%%%1").."]", "")
-end
 
+    local novoArray = {}
+    for c in linha:gmatch(".") do
+        if not caracteresEspeciais:find(c, 1, true) then
+            table.insert(novoArray, c)
+        end
+    end
+
+    return table.concat(novoArray)
+end
 
 function contarPalavras(conteudoLimpo)
     local contagemPalavras = {}
-  
+    conteudoLimpo = M.map(string.lower, conteudoLimpo)
+
     for _, linha in ipairs(conteudoLimpo) do
         if linha then 
             for palavra in linha:gmatch("%S+") do
-                palavra = palavra:lower()
                 contagemPalavras[palavra] = (contagemPalavras[palavra] or 0) + 1
             end
         end
     end
-  
+
     return contagemPalavras
 end
-  
 
 function criarJSON(listaPalavras, episodioEscolhido)
-    json = require "json"
-    local arquivoJSON = "contagem_palavras.json"
+    local json = require "json"
+    local arquivoJSON = "contagem_palavras_episodio_" .. episodioEscolhido .. ".json"
     local file = io.open(arquivoJSON, "w")
     if file then
         file:write("[\n")
@@ -121,40 +129,27 @@ function criarJSON(listaPalavras, episodioEscolhido)
     end
 end
 
-function opcaoEpisodio()
-    print("Selecione o episodio que deseja processar (Entre 1 e 9): ")
-    opcao = io.read("*n")
-    while (opcao < 1 or opcao > 9) do
-        print("Selecione o episodio que deseja processar (Entre 1 e 9): ")
-        opcao = io.read("*n")
-    end
-
-    return opcao
-end
-
 function main()
-    episodioEscolhido = opcaoEpisodio()
-    local arquivo = "../vikings-first-season/Vikings.S01E0".. episodioEscolhido ..".1080p.WEB-DL.AC3.X264-MRSK.srt"
+    for episodioEscolhido = 1, 9 do
+        local arquivo = string.format("../vikings-first-season/Vikings.S01E0%d.1080p.WEB-DL.AC3.X264-MRSK.srt", episodioEscolhido)
+        local conteudoOriginal = lerArquivo(arquivo)
+        local conteudoLimpo = removerLinhasIndesejadas(removerEspacos(conteudoOriginal))
+        conteudoLimpo = removerTags(conteudoLimpo)
+        
+        local contagemPalavras = contarPalavras(conteudoLimpo)
+        
+        local listaPalavras = {}
+        for palavra, frequencia in pairs(contagemPalavras) do
+            table.insert(listaPalavras, {palavra = palavra, frequencia = frequencia})
+        end
 
-    local conteudoOriginal = lerArquivo(arquivo)
-    local conteudoLimpo = removerLinhasIndesejadas(removerEspacos(conteudoOriginal))
-    conteudoLimpo = removerTags(conteudoLimpo)
-    
-    local contagemPalavras = contarPalavras(conteudoLimpo)
-    
-    local listaPalavras = {}
-    for palavra, frequencia in pairs(contagemPalavras) do
-        table.insert(listaPalavras, {palavra = palavra, frequencia = frequencia})
+        local function compararFrequencia(a, b)
+            return a.frequencia > b.frequencia 
+        end
+        table.sort(listaPalavras, compararFrequencia)
+
+        criarJSON(listaPalavras, episodioEscolhido)
     end
-
-    local function compararFrequencia(a, b)
-        return a.frequencia > b.frequencia 
-    end
-    table.sort(listaPalavras, compararFrequencia)
-
-
-    criarJSON(listaPalavras, episodioEscolhido)
 end
-
 
 main()
